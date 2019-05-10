@@ -1,23 +1,23 @@
+#Five Needle Pine Validation Script (Allison Snyder)
+#MOJN modifications to code 11/2018; Automated output filename (Lehman)
 
+#CODE MUST RUN IN 32 BIT R. May need to adjust selection in R Studio under Tools:Global Options:R Version
 
 rm(list=ls()) # start with a clean slate
 
-setwd("C:/Users/snydera/Desktop/R_Validation") 
-
+###Each network will need to update for working directory to location of backend
+setwd("M:/MONITORING/Pine/Data/Database/2018") 
 
 library("RODBC")
 library("lubridate")
-library("dplyr")
-library("tidyr")
-library(xlsx)
-library(tidyverse)
-library("stringr")
+library("xlsx")
+library("tidyverse")
 library("distr")
 
 options(stringsAsFactors = FALSE) 
 
-##Connect to the correct Whitebark Pine database
-connection <- odbcConnectAccess2007("Master_WBP_20180906_0909_FinalFieldDB_20180912_1409.mdb")
+###Each network will need to update to the name of their backend
+connection <- odbcConnectAccess2007("MOJN_PINE_20181219_Omnibus.mdb")
 
 #Import Location Data
 Locations <- sqlFetch(connection,"tbl_Locations")
@@ -27,26 +27,30 @@ SpeciesList <- sqlFetch(connection,"tlu_Species_Parks")
 
 #Import Events Data
 Events<- sqlQuery(connection, "SELECT tbl_Locations.PlotID_Number, tbl_Events.Start_Date, tbl_Events.Event_ID, tbl_Events.Location_ID
-FROM tbl_Locations INNER JOIN tbl_Events ON tbl_Locations.Location_ID = tbl_Events.Location_ID")
+                  FROM tbl_Locations INNER JOIN tbl_Events ON tbl_Locations.Location_ID = tbl_Events.Location_ID")
 
 #Start XLS file to hold data errors
-write.xlsx(Events, file= "WBP_Validation.xlsx", sheetName = "EventsList_NoErrors", row.names = FALSE, showNA = FALSE)
+OutputFilename <- paste("WBP_Validation_",format(now(), "%Y%m%d_%H%M%S_"),".xlsx",sep="")
+write.xlsx(Events, file = OutputFilename , sheetName = "EventsList_NoErrors", row.names = FALSE, showNA = FALSE)
 
 #Import Tree Data
 DataTrees <- sqlQuery(connection, "SELECT tbl_Sites.Unit_Code, tbl_Locations.PlotID_Number, tbl_Events.Start_Date, tbl_Locations.Panel_ID, tbl_Locations.Panel_YrEst, tbl_EvData_TreeData.TreeData_ID, tbl_EvData_TreeData.Event_ID, tbl_EvData_TreeData.TreeData_SubPlot_StripID, tbl_EvData_TreeData.TreeData_SubPlot_StripNotes, tbl_EvData_TreeData.TreeID_Number, tbl_EvData_TreeData.Species_Code, tbl_EvData_TreeData.Clump_Number, tbl_EvData_TreeData.Stem_Letter, tbl_EvData_TreeData.Tag_Moved, tbl_EvData_TreeData.TreeHeight_m, tbl_EvData_TreeData.TreeDBH_cm, tbl_EvData_TreeData.Krumholtz_YN, tbl_EvData_TreeData.Tree_Status, tbl_EvData_TreeData.StatusDead_Cause, tbl_EvData_TreeData.Crown_Health, tbl_EvData_TreeData.CrownKill_Upper_perc, tbl_EvData_TreeData.CrownKill_Mid_perc, tbl_EvData_TreeData.CrownKill_Lower_perc, tbl_EvData_TreeData.BranchCanks_A_Upper_YN, tbl_EvData_TreeData.BranchCanks_I_Upper_YN, tbl_EvData_TreeData.BranchCanks_ITypes_Upper, tbl_EvData_TreeData.BranchCanks_A_Mid_YN, tbl_EvData_TreeData.BranchCanks_I_Mid_YN, tbl_EvData_TreeData.BranchCanks_ITypes_Mid, tbl_EvData_TreeData.BranchCanks_A_Lower_YN, tbl_EvData_TreeData.BranchCanks_I_Lower_YN, tbl_EvData_TreeData.BranchCanks_ITypes_Lower, tbl_EvData_TreeData.BoleCankers_A_Upper_YN, tbl_EvData_TreeData.BoleCankers_I_Upper_YN, tbl_EvData_TreeData.BoleCanks_ITypes_Upper, tbl_EvData_TreeData.BoleCankers_A_Mid_YN, tbl_EvData_TreeData.BoleCankers_I_Mid_YN, tbl_EvData_TreeData.BoleCanks_ITypes_Mid, tbl_EvData_TreeData.BoleCankers_A_Lower_YN, tbl_EvData_TreeData.BoleCankers_I_Lower_YN, tbl_EvData_TreeData.BoleCanks_ITypes_Lower, tbl_EvData_TreeData.PineBeetle_JGalleries_YN, tbl_EvData_TreeData.PineBeetle_PitchTube_YN, tbl_EvData_TreeData.PineBeetle_Frass_YN, tbl_EvData_TreeData.Mistletoe_YN, tbl_EvData_TreeData.FemaleCones_YN, tbl_EvData_TreeData.Cone_Count, tbl_EvData_TreeData.TreeData_Notes, tbl_EvData_TreeData.Mort_Year, tbl_EvData_TreeData.Tree_FlagID, tbl_EvData_TreeData.IsProofed, tbl_EvData_TreeData.Tree_DataCertID
-FROM ((tbl_Sites INNER JOIN tbl_Locations ON tbl_Sites.[Site_ID] = tbl_Locations.[Site_ID_F]) INNER JOIN tbl_Events ON tbl_Locations.[Location_ID] = tbl_Events.[Location_ID]) INNER JOIN tbl_EvData_TreeData ON tbl_Events.[Event_ID] = tbl_EvData_TreeData.[Event_ID];")
+                      FROM ((tbl_Sites INNER JOIN tbl_Locations ON tbl_Sites.[Site_ID] = tbl_Locations.[Site_ID_F]) INNER JOIN tbl_Events ON tbl_Locations.[Location_ID] = tbl_Events.[Location_ID]) INNER JOIN tbl_EvData_TreeData ON tbl_Events.[Event_ID] = tbl_EvData_TreeData.[Event_ID];")
 
 #Import Seedling Data
 DataSeedlings <- sqlQuery(connection, "SELECT tbl_Sites.Unit_Code, tbl_Locations.PlotID_Number, tbl_Events.Start_Date, tbl_EvData_SeedlingCounts.SeedlingCount_ID, tbl_EvData_SeedlingCounts.Event_ID, tbl_EvData_SeedlingCounts.Seedling_SubPlot_ID, tbl_EvData_SeedlingCounts.Species_Code, tbl_EvData_SeedlingCounts.Height_Class, tbl_EvData_SeedlingCounts.SeedlingTag, tbl_EvData_SeedlingCounts.Status, tbl_EvData_SeedlingCounts.Seedling_SubPlot_Notes, tbl_EvData_SeedlingCounts.Seedling_FlagID, tbl_EvData_SeedlingCounts.IsProofed, tbl_EvData_SeedlingCounts.Seedling_DataCertID, tbl_EvData_SeedlingCounts.Death_Cause
-FROM ((tbl_Sites INNER JOIN tbl_Locations ON tbl_Sites.Site_ID = tbl_Locations.Site_ID_F) INNER JOIN tbl_Events ON tbl_Locations.Location_ID = tbl_Events.Location_ID) INNER JOIN tbl_EvData_SeedlingCounts ON tbl_Events.Event_ID = tbl_EvData_SeedlingCounts.Event_ID;")
+                          FROM ((tbl_Sites INNER JOIN tbl_Locations ON tbl_Sites.Site_ID = tbl_Locations.Site_ID_F) INNER JOIN tbl_Events ON tbl_Locations.Location_ID = tbl_Events.Location_ID) INNER JOIN tbl_EvData_SeedlingCounts ON tbl_Events.Event_ID = tbl_EvData_SeedlingCounts.Event_ID;")
 
 #Import Photo Data
-DataPhotos <- sqlQuery(connection, "SELECT tbl_Sites.Unit_Code, tbl_Locations.PlotID_Number, tbl_Events.Start_Date, tbl_EvData_PlotPhotos.PlotPhoto_ID, tbl_EvData_PlotPhotos.Event_ID, tbl_EvData_PlotPhotos.PlotPhoto_Number, tbl_EvData_PlotPhotos.PlotPhoto_File_Name, tbl_EvData_PlotPhotos.PlotPhoto_File_Path, tbl_EvData_PlotPhotos.PlotPhoto_Loc_Ref, tbl_EvData_PlotPhotos.PlotPhoto_Bear_deg, tbl_EvData_PlotPhotos.Camera_ImageID, tbl_EvData_PlotPhotos.PlotPhoto_Notes, tbl_EvData_PlotPhotos.PlotPhoto_Date, tbl_EvData_PlotPhotos.Photo_FlagID, tbl_EvData_PlotPhotos.IsProofed, tbl_EvData_PlotPhotos.Photo_DataCertID
-FROM (tbl_Sites INNER JOIN (tbl_Locations INNER JOIN tbl_Events ON tbl_Locations.Location_ID = tbl_Events.Location_ID) ON tbl_Sites.Site_ID = tbl_Locations.Site_ID_F) INNER JOIN tbl_EvData_PlotPhotos ON tbl_Events.Event_ID = tbl_EvData_PlotPhotos.Event_ID;")
+DataPhotos <- sqlQuery(connection, "SELECT tbl_Sites.Unit_Code, tbl_Locations.PlotID_Number, tbl_Events.Start_Date, tbl_EvData_PlotPhotos.PlotPhoto_ID, tbl_EvData_PlotPhotos.Event_ID, tbl_EvData_PlotPhotos.PlotPhoto_Number, tbl_EvData_PlotPhotos.PlotPhoto_File_Name, tbl_EvData_PlotPhotos.PlotPhoto_File_Path, tbl_EvData_PlotPhotos.PlotPhoto_Loc_Ref, tbl_EvData_PlotPhotos.PlotPhoto_Bear_deg, tbl_EvData_PlotPhotos.Camera_ImageID, tbl_EvData_PlotPhotos.PlotPhoto_Notes, tbl_EvData_PlotPhotos.PlotPhoto_Date
+                       FROM (tbl_Sites INNER JOIN (tbl_Locations INNER JOIN tbl_Events ON tbl_Locations.Location_ID = tbl_Events.Location_ID) ON tbl_Sites.Site_ID = tbl_Locations.Site_ID_F) INNER JOIN tbl_EvData_PlotPhotos ON tbl_Events.Event_ID = tbl_EvData_PlotPhotos.Event_ID;")
 
 Spatial <- sqlFetch(connection, "tbl_Locations")
 
 ###Looking for Events with missing data
+
+#Initialize Event Log
+eventlog <-data.frame(QName="TestData", ErrorCount=0)
 
 #Looking for events with no tree records- if records exist, write to xlsx
 EventsNoTrees <- merge(Events, DataTrees, by = 'Event_ID', all = TRUE)
@@ -54,10 +58,10 @@ EventsNoTrees <- subset(EventsNoTrees, (is.na(EventsNoTrees$PlotID_Number.y) & !
 EventsNoTrees <-EventsNoTrees%>%
   select(PlotID_Number.x, Event_ID, Start_Date.x, Unit_Code)
 
-
-TestEventNoTrees<- if(nrow(EventsNoTrees)>0) {
-write.xlsx(TestEventNoTrees, file= "WBP_Validation.xlsx", sheetName = "EventsNoTrees", append = TRUE, row.names = FALSE, showNA = FALSE)
+if(nrow(EventsNoTrees)>0) {
+  write.xlsx(EventsNoTrees, file= OutputFilename, sheetName = "EventsNoTrees", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
+eventlog <- rbind(eventlog,c("EventsNoTrees", nrow(EventsNoTrees)))
 
 #Looking for events with no photo records- if records exist, write to xlsx
 EventsNoPhotos <- merge(Events, DataPhotos, by = 'Event_ID', all = TRUE)
@@ -65,9 +69,10 @@ EventsNoPhotos <- subset(EventsNoPhotos, (is.na(EventsNoPhotos$PlotID_Number.y) 
 EventsNoPhotos <-EventsNoPhotos%>%
   select(PlotID_Number.x, Event_ID, Start_Date.x, Unit_Code)
 
-TestEventNoPhotos<- if(nrow(EventsNoPhotos)>0) {
-  write.xlsx(EventsNoPhotos, file= "WBP_Validation.xlsx", sheetName = "EventsNoPhotos", append = TRUE, row.names = FALSE, showNA = FALSE)
+if(nrow(EventsNoPhotos)>0) {
+  write.xlsx(EventsNoPhotos, file= OutputFilename, sheetName = "EventsNoPhotos", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
+eventlog <- rbind(eventlog,c("EventsNoPhotos", nrow(EventsNoPhotos)))
 
 #Looking for events with no seedling records- if records exist, write to xlsx
 EventsNoSeedlings <- merge(Events, DataSeedlings, by = 'Event_ID', all = TRUE)
@@ -76,8 +81,9 @@ EventsNoSeedlings <-EventsNoSeedlings%>%
   select(PlotID_Number.x, Event_ID, Start_Date.x, Unit_Code)
 
 TestEventsNoSeedlings<- if(nrow(EventsNoSeedlings)>0) {
-  write.xlsx(EventsNoSeedlings, file= "WBP_Validation.xlsx", sheetName = "EventsNoSeedlings", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(EventsNoSeedlings, file= OutputFilename, sheetName = "EventsNoSeedlings", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
+eventlog <- rbind(eventlog,c("EventsNoSeedlings", nrow(EventsNoSeedlings)))
 
 ###Photo Validation
 
@@ -87,8 +93,9 @@ PhotosBearing <-PhotosBearing%>%
   select(PlotID_Number, Event_ID, Start_Date, Unit_Code, PlotPhoto_ID, PlotPhoto_File_Name, PlotPhoto_Number, PlotPhoto_File_Path, PlotPhoto_Loc_Ref, Camera_ImageID, PlotPhoto_Bear_deg)
 
 TestPhotosBearing<- if(nrow(PhotosBearing)>0) {
-  write.xlsx(PhotosBearing, file= "WBP_Validation.xlsx", sheetName = "PhotosBearingOver360", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(PhotosBearing, file= OutputFilename, sheetName = "PhotosBearingOver360", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
+eventlog <- rbind(eventlog,c("PhotosBearingOver360", nrow(PhotosBearing)))
 
 #Looking for events where there are less than 4 photos- if records exist, write to xlsx
 PhotoClean <- DataPhotos[,c('Unit_Code', 'Start_Date', 'PlotID_Number')]
@@ -98,8 +105,9 @@ names(PhotoCount3) <- c("PlotID_Number", "n")
 PhotoCount4 <- subset(PhotoCount3, ((PhotoCount3$n < 4)))
 
 TestPhotoCount<- if(nrow(PhotoCount4)>0) {
-  write.xlsx(PhotoCount4, file= "WBP_Validation.xlsx", sheetName = "PhotosCountLT4", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(PhotoCount4, file= OutputFilename, sheetName = "PhotosCountLT4", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
+eventlog <- rbind(eventlog,c("PhotosCountLT4", nrow(PhotoCount4)))
 
 #Returns photo records that don't have a domain value for PlotPhoto_Loc_Ref- if records exist, write to xlsx
 PhotosLocRef <- subset(DataPhotos, ((DataPhotos$PlotPhoto_Loc_Ref != "SW_Corner" & DataPhotos$PlotPhoto_Loc_Ref != "NW_Corner" & DataPhotos$PlotPhoto_Loc_Ref != "NE_Corner" & DataPhotos$PlotPhoto_Loc_Ref != "SE_Corner" & DataPhotos$PlotPhoto_Loc_Ref != "See_Notes")))
@@ -108,8 +116,9 @@ PhotosLocRef <-PhotosLocRef%>%
   select(PlotID_Number, Event_ID, Start_Date, Unit_Code, PlotPhoto_ID, PlotPhoto_File_Name, PlotPhoto_Number, PlotPhoto_File_Path, PlotPhoto_Loc_Ref, Camera_ImageID, PlotPhoto_Bear_deg)
 
 TestPhotoLocRef<- if(nrow(PhotosLocRef)>0) {
-  write.xlsx(PhotosLocRef, file= "WBP_Validation.xlsx", sheetName = "PhotosNoLocRef", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(PhotosLocRef, file= OutputFilename, sheetName = "PhotosNoLocRef", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
+
 
 #Returns photo records that are missing photo number - if records exist, write to xlsx
 PhotosDataMissingNumber <- subset(DataPhotos, (is.na(DataPhotos$PlotPhoto_Number)))
@@ -117,7 +126,7 @@ PhotosDataMissingNumber <-PhotosDataMissingNumber%>%
   select(PlotID_Number, Event_ID, Start_Date, Unit_Code, PlotPhoto_ID, PlotPhoto_File_Name, PlotPhoto_Number, PlotPhoto_File_Path, PlotPhoto_Loc_Ref, Camera_ImageID, PlotPhoto_Bear_deg)
 
 TestPhotoMissingNum<- if(nrow(PhotosDataMissingNumber)>0) {
-  write.xlsx(PhotosDataMissingNumber, file= "WBP_Validation.xlsx", sheetName = "PhotosMissingNum", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(PhotosDataMissingNumber, file= OutputFilename, sheetName = "PhotosMissingNum", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 #Returns photo records that are missing file name- if records exist, write to xlsx 
@@ -126,7 +135,7 @@ PhotosDataMissingFileName <-PhotosDataMissingFileName%>%
   select(PlotID_Number, Event_ID, Start_Date, Unit_Code, PlotPhoto_ID, PlotPhoto_File_Name, PlotPhoto_Number, PlotPhoto_File_Path, PlotPhoto_Loc_Ref, Camera_ImageID, PlotPhoto_Bear_deg)
 
 TestPhotoMissingFileName<- if(nrow(PhotosDataMissingFileName)>0) {
-  write.xlsx(PhotosDataMissingFileName, file= "WBP_Validation.xlsx", sheetName = "PhotosMissingFileName", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(PhotosDataMissingFileName, file= OutputFilename, sheetName = "PhotosMissingFileName", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 #Returns photo records that are missing file path- if records exist, write to xlsx
@@ -135,7 +144,7 @@ PhotosDataMissingFilePath <-PhotosDataMissingFilePath%>%
   select(PlotID_Number, Event_ID, Start_Date, Unit_Code, PlotPhoto_ID, PlotPhoto_File_Name, PlotPhoto_Number, PlotPhoto_File_Path, PlotPhoto_Loc_Ref, Camera_ImageID, PlotPhoto_Bear_deg)
 
 TestPhotoMissingPath<- if(nrow(PhotosDataMissingFilePath)>0) {
-  write.xlsx(PhotosDataMissingFilePath, file= "WBP_Validation.xlsx", sheetName = "PhotosMissingFilePath", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(PhotosDataMissingFilePath, file= OutputFilename, sheetName = "PhotosMissingFilePath", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 #Returns photo records that are missing location reference- if records exist, write to xlsx
@@ -144,7 +153,7 @@ PhotosDataMissingLocRef <-PhotosDataMissingLocRef%>%
   select(PlotID_Number, Event_ID, Start_Date, Unit_Code, PlotPhoto_ID, PlotPhoto_File_Name, PlotPhoto_Number, PlotPhoto_File_Path, PlotPhoto_Loc_Ref, Camera_ImageID, PlotPhoto_Bear_deg)
 
 TestPhotoMissingLocRef<- if(nrow(PhotosDataMissingLocRef)>0) {
-  write.xlsx(PhotosDataMissingLocRef, file= "WBP_Validation.xlsx", sheetName = "PhotosMissingLoCRef", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(PhotosDataMissingLocRef, file= OutputFilename, sheetName = "PhotosMissingLoCRef", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 #Returns photo records that are missing bearing- if records exist, write to xlsx 
@@ -153,8 +162,8 @@ PhotosDataMissingBearing <-PhotosDataMissingBearing%>%
   select(PlotID_Number, Event_ID, Start_Date, Unit_Code, PlotPhoto_ID, PlotPhoto_File_Name, PlotPhoto_Number, PlotPhoto_File_Path, PlotPhoto_Loc_Ref, Camera_ImageID, PlotPhoto_Bear_deg)
 
 
-TestPhotoMissingBearing<- if(nrow(PhotosDataMissingBearing)>0) {
-  write.xlsx(PhotosDataMissingBearing, file= "WBP_Validation.xlsx", sheetName = "PhotosMissingBearing", append = TRUE, row.names = FALSE, showNA = FALSE)
+if(nrow(PhotosDataMissingBearing)>0) {
+  write.xlsx(PhotosDataMissingBearing, file= OutputFilename, sheetName = "PhotosMissingBearing", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 #Returns photo records that are missing image ID- if records exist, write to xlsx 
@@ -163,7 +172,7 @@ PhotosDataMissingImageID <-PhotosDataMissingImageID%>%
   select(PlotID_Number, Event_ID, Start_Date, Unit_Code, PlotPhoto_ID, PlotPhoto_File_Name, PlotPhoto_Number, PlotPhoto_File_Path, PlotPhoto_Loc_Ref, Camera_ImageID, PlotPhoto_Bear_deg)
 
 TestPhotoMissingImageID<- if(nrow(PhotosDataMissingImageID)>0) {
-  write.xlsx(PhotosDataMissingImageID, file= "WBP_Validation.xlsx", sheetName = "PhotosMissingImageID", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(PhotosDataMissingImageID, file= OutputFilename, sheetName = "PhotosMissingImageID", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 #Returns photo records that are missing photo date- if records exist, write to xlsx  
@@ -172,7 +181,7 @@ PhotosDataMissingDate <-PhotosDataMissingDate%>%
   select(PlotID_Number, Event_ID, Start_Date, Unit_Code, PlotPhoto_ID, PlotPhoto_File_Name, PlotPhoto_Number, PlotPhoto_File_Path, PlotPhoto_Loc_Ref, Camera_ImageID, PlotPhoto_Bear_deg)
 
 TestPhotoMissingDate<- if(nrow(PhotosDataMissingDate)>0) {
-  write.xlsx(PhotosDataMissingDate, file= "WBP_Validation.xlsx", sheetName = "PhotosMissingDate", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(PhotosDataMissingDate, file= OutputFilename, sheetName = "PhotosMissingDate", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 ###Seedling Validation
@@ -183,7 +192,7 @@ SeedlingDataDeathCause <-SeedlingDataDeathCause%>%
   select(PlotID_Number, Event_ID, Start_Date, Unit_Code, Seedling_SubPlot_ID, Species_Code, Height_Class, SeedlingTag, Status, Death_Cause, Seedling_SubPlot_Notes)
 
 TestSeedDeathCause<- if(nrow(SeedlingDataDeathCause)>0) {
-  write.xlsx(SeedlingDataDeathCause, file= "WBP_Validation.xlsx", sheetName = "SeedlingDeathCause", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(SeedlingDataDeathCause, file= OutputFilename, sheetName = "SeedlingDeathCause", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 
@@ -193,7 +202,7 @@ SeedlingDataHeight <-SeedlingDataHeight%>%
   select(PlotID_Number, Event_ID, Start_Date, Unit_Code, Seedling_SubPlot_ID, Species_Code, Height_Class, SeedlingTag, Status, Death_Cause, Seedling_SubPlot_Notes)
 
 TestSeedDataHt<- if(nrow(SeedlingDataHeight)>0) {
-  write.xlsx(SeedlingDataHeight, file= "WBP_Validation.xlsx", sheetName = "SeedlingDataHt", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(SeedlingDataHeight, file= OutputFilename, sheetName = "SeedlingDataHt", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 
@@ -203,7 +212,7 @@ SeedlingDataMissingSubplot <-SeedlingDataMissingSubplot%>%
   select(PlotID_Number, Event_ID, Start_Date, Unit_Code, Seedling_SubPlot_ID, Species_Code, Height_Class, SeedlingTag, Status, Death_Cause, Seedling_SubPlot_Notes)
 
 TestSeedDataMissingSub<- if(nrow(SeedlingDataMissingSubplot)>0) {
-  write.xlsx(SeedlingDataMissingSubplot, file= "WBP_Validation.xlsx", sheetName = "SeedlingMissingSubplot", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(SeedlingDataMissingSubplot, file= OutputFilename, sheetName = "SeedlingMissingSubplot", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 #Returns seedlings records that are missing data in species- if records exist, write to xlsx 
@@ -212,7 +221,7 @@ SeedlingDataMissingSpCode <-SeedlingDataMissingSpCode%>%
   select(PlotID_Number, Event_ID, Start_Date, Unit_Code, Seedling_SubPlot_ID, Species_Code, Height_Class, SeedlingTag, Status, Death_Cause, Seedling_SubPlot_Notes)
 
 TestSeedMissingSp<- if(nrow(SeedlingDataMissingSpCode)>0) {
-  write.xlsx(SeedlingDataMissingSpCode, file= "WBP_Validation.xlsx", sheetName = "SeedlingMissingSp", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(SeedlingDataMissingSpCode, file= OutputFilename, sheetName = "SeedlingMissingSp", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 
@@ -223,7 +232,7 @@ SeedlingDataMissingHt <-SeedlingDataMissingHt%>%
   select(PlotID_Number, Event_ID, Start_Date, Unit_Code, Seedling_SubPlot_ID, Species_Code, Height_Class, SeedlingTag, Status, Death_Cause, Seedling_SubPlot_Notes)
 
 TestSeedMissingHt<- if(nrow(SeedlingDataMissingHt)>0) {
-  write.xlsx(SeedlingDataMissingHt, file= "WBP_Validation.xlsx", sheetName = "SeedlingMissingHt", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(SeedlingDataMissingHt, file= OutputFilename, sheetName = "SeedlingMissingHt", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 
@@ -233,7 +242,7 @@ SeedlingDataMissingTag <-SeedlingDataMissingTag%>%
   select(PlotID_Number, Event_ID, Start_Date, Unit_Code, Seedling_SubPlot_ID, Species_Code, Height_Class, SeedlingTag, Status, Death_Cause, Seedling_SubPlot_Notes)
 
 TestSeedMissingTag<- if(nrow(SeedlingDataMissingTag)>0) {
-  write.xlsx(SeedlingDataMissingTag, file= "WBP_Validation.xlsx", sheetName = "SeedlingMissingTag", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(SeedlingDataMissingTag, file= OutputFilename, sheetName = "SeedlingMissingTag", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 
@@ -243,7 +252,7 @@ SeedlingDataMissingStatus <-SeedlingDataMissingStatus%>%
   select(PlotID_Number, Event_ID, Start_Date, Unit_Code, Seedling_SubPlot_ID, Species_Code, Height_Class, SeedlingTag, Status, Death_Cause, Seedling_SubPlot_Notes)
 
 TestSeedMissingStatus<- if(nrow(SeedlingDataMissingStatus)>0) {
-  write.xlsx(SeedlingDataMissingStatus, file= "WBP_Validation.xlsx", sheetName = "SeedlingMissingStatus", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(SeedlingDataMissingStatus, file= OutputFilename, sheetName = "SeedlingMissingStatus", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 
@@ -256,7 +265,7 @@ SeedlingNoSpJoin <-SeedlingNoSpJoin%>%
   select(PlotID_Number, Event_ID, Start_Date, Unit_Code, Seedling_SubPlot_ID, Species_Code, Height_Class, SeedlingTag, Status, Death_Cause, Seedling_SubPlot_Notes)
 
 TestSeedMissingSPinLU<- if(nrow(SeedlingNoSpJoin)>0) {
-  write.xlsx(SeedlingNoSpJoin, file= "WBP_Validation.xlsx", sheetName = "SeedlingNoSpInLU_Table", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(SeedlingNoSpJoin, file= OutputFilename, sheetName = "SeedlingNoSpInLU_Table", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 
@@ -267,7 +276,7 @@ SeedlingDataStatus <-SeedlingDataStatus%>%
 
 
 TestSeedStatusDomain<- if(nrow(SeedlingDataStatus)>0) {
-  write.xlsx(SeedlingDataStatus, file= "WBP_Validation.xlsx", sheetName = "SeedlingStatusDomain", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(SeedlingDataStatus, file= OutputFilename, sheetName = "SeedlingStatusDomain", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 
@@ -277,7 +286,7 @@ SeedlingDataSubplot <-SeedlingDataSubplot%>%
   select(PlotID_Number, Event_ID, Start_Date, Unit_Code, Seedling_SubPlot_ID, Species_Code, Height_Class, SeedlingTag, Status, Death_Cause, Seedling_SubPlot_Notes)
 
 TestSeedSubplot<- if(nrow(SeedlingDataSubplot)>0) {
-  write.xlsx(SeedlingDataSubplot, file= "WBP_Validation.xlsx", sheetName = "SeedlingSubplot_Not_1-9", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(SeedlingDataSubplot, file= OutputFilename, sheetName = "SeedlingSubplot_Not_1-9", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 
@@ -291,7 +300,7 @@ SeedlingDataSubplotCount4 <- subset(SeedlingDataSubplotCount3, ((SeedlingDataSub
 
 
 TestSeedSubplotNotNine<- if(nrow(SeedlingDataSubplotCount4)>0) {
-  write.xlsx(as.data.frame(SeedlingDataSubplotCount4), file= "WBP_Validation.xlsx", sheetName = "SeedlingsNot9Subplots", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(as.data.frame(SeedlingDataSubplotCount4), file= OutputFilename, sheetName = "SeedlingsNot9Subplots", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 #Returns seedling records with duplicate tags
@@ -302,7 +311,7 @@ SeedDupTag <-DataSeedlings%>%
 SeedDupTag2 <- subset(SeedDupTag, (!is.na(SeedDupTag$SeedlingTag) & (SeedDupTag$CountTot > 1)))
 
 TestSeedDupTag<- if(nrow(SeedDupTag2)>0) {
-  write.xlsx(as.data.frame(SeedDupTag2), file= "WBP_Validation.xlsx", sheetName = "SeedlingsDupTag", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(as.data.frame(SeedDupTag2), file= OutputFilename, sheetName = "SeedlingsDupTag", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 
@@ -314,7 +323,7 @@ TreeDataDeathCause <-TreeDataDeathCause%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, Start_Date, TreeData_ID,  Clump_Number, Stem_Letter, Species_Code, Tree_Status, StatusDead_Cause, TreeData_Notes)
 
 TestTreeDataDeathCause<- if(nrow(TreeDataDeathCause)>0) {
-  write.xlsx(TreeDataDeathCause, file= "WBP_Validation.xlsx", sheetName = "TreeDeadNoCause", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataDeathCause, file= OutputFilename, sheetName = "TreeDeadNoCause", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 #Returns tree records with duplicate tags
@@ -325,7 +334,7 @@ TreeDupTag <-DataTrees%>%
 TreeDupTag2 <- subset(TreeDupTag, ((TreeDupTag$CountTreeTot > 1)))
 
 TestTreeDupTag<- if(nrow(TreeDupTag2)>0) {
-  write.xlsx(as.data.frame(TreeDupTag2), file= "WBP_Validation.xlsx", sheetName = "TreeDupTag", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(as.data.frame(TreeDupTag2), file= OutputFilename, sheetName = "TreeDupTag", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 #Returns tree records that have a height that should be checked- if records exist, write to xlsx 
@@ -334,7 +343,7 @@ TreeDataHeight <-TreeDataHeight%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeHeight_m, Tree_Status, StatusDead_Cause, TreeData_Notes)
 
 TestTreeHt<- if(nrow(TreeDataHeight)>0) {
-  write.xlsx(TreeDataHeight, file= "WBP_Validation.xlsx", sheetName = "TreeHeight", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataHeight, file= OutputFilename, sheetName = "TreeHeight", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 #Returns tree records where Status = RD and Species = PIAL and Mortality Year is not populated- if records exist, write to xlsx 
@@ -343,7 +352,7 @@ TreeMortYear <-TreeMortYear%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, Mort_Year, TreeHeight_m, Tree_Status, StatusDead_Cause, TreeData_Notes)
 
 TestTreeMortYear<- if(nrow(TreeMortYear)>0) {
-  write.xlsx(TreeMortYear, file= "WBP_Validation.xlsx", sheetName = "TreeNoMortYear", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeMortYear, file= OutputFilename, sheetName = "TreeNoMortYear", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -353,7 +362,7 @@ TreeDataCones1 <-TreeDataCones1%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, Start_Date, Event_ID, Clump_Number, Stem_Letter, Species_Code, Mort_Year, TreeHeight_m, Tree_Status, StatusDead_Cause, FemaleCones_YN, Cone_Count, TreeData_Notes)
 
 TestTreeCones1<- if(nrow(TreeDataCones1)>0) {
-  write.xlsx(TreeDataCones1, file= "WBP_Validation.xlsx", sheetName = "TreeConesTrueNoConeCt", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataCones1, file= OutputFilename, sheetName = "TreeConesTrueNoConeCt", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 #Returns tree records where cones = false and cone count is populated- if records exist, write to xlsx 
@@ -362,7 +371,7 @@ TreeDataCones2 <-TreeDataCones2%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, Mort_Year, TreeHeight_m, Tree_Status, StatusDead_Cause, FemaleCones_YN, Cone_Count, TreeData_Notes)
 
 TestTreeCones2<- if(nrow(TreeDataCones2)>0) {
-  write.xlsx(TreeDataCones2, file= "WBP_Validation.xlsx", sheetName = "TreeConesFalseConeCt", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataCones2, file= OutputFilename, sheetName = "TreeConesFalseConeCt", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -373,7 +382,7 @@ TreeDataCrownHealth <-TreeDataCrownHealth%>%
 
 
 TestTreeCrownHealth<- if(nrow(TreeDataCrownHealth)>0) {
-  write.xlsx(TreeDataCrownHealth, file= "WBP_Validation.xlsx", sheetName = "TreeCrownHealthNot1_5", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataCrownHealth, file= OutputFilename, sheetName = "TreeCrownHealthNot1_5", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -384,7 +393,7 @@ TreeDataCrownKillLow <-TreeDataCrownKillLow%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeHeight_m, Tree_Status, CrownKill_Lower_perc, CrownKill_Mid_perc, CrownKill_Upper_perc, Crown_Health, TreeData_Notes)
 
 TestTreeCrownKillLow<- if(nrow(TreeDataCrownKillLow)>0) {
-  write.xlsx(TreeDataCrownKillLow, file= "WBP_Validation.xlsx", sheetName = "TreeCrownKillLowGT100", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataCrownKillLow, file= OutputFilename, sheetName = "TreeCrownKillLowGT100", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -394,7 +403,7 @@ TreeDataCrownKillMid <-TreeDataCrownKillMid%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeHeight_m, Tree_Status, CrownKill_Lower_perc, CrownKill_Mid_perc, CrownKill_Upper_perc, Crown_Health, TreeData_Notes)
 
 TestTreeCrownKillMid<- if(nrow(TreeDataCrownKillMid)>0) {
-  write.xlsx(TreeDataCrownKillMid, file= "WBP_Validation.xlsx", sheetName = "TreeCrownKillMidGT100", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataCrownKillMid, file= OutputFilename, sheetName = "TreeCrownKillMidGT100", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -405,7 +414,7 @@ TreeDataCrownKillUp <-TreeDataCrownKillUp%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeHeight_m, Tree_Status, CrownKill_Lower_perc, CrownKill_Mid_perc, CrownKill_Upper_perc, Crown_Health, TreeData_Notes)
 
 TestTreeCrownKillUp<- if(nrow(TreeDataCrownKillUp)>0) {
-  write.xlsx(TreeDataCrownKillUp, file= "WBP_Validation.xlsx", sheetName = "TreeCrownKillUpGT100", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataCrownKillUp, file= OutputFilename, sheetName = "TreeCrownKillUpGT100", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -415,7 +424,7 @@ TreeDataDBH <-TreeDataDBH%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeDBH_cm, TreeHeight_m, Tree_Status, Crown_Health, TreeData_Notes)
 
 TestTreeDBH_GT200<- if(nrow(TreeDataDBH)>0) {
-  write.xlsx(TreeDataDBH, file= "WBP_Validation.xlsx", sheetName = "TreeDBH_GT200", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataDBH, file= OutputFilename, sheetName = "TreeDBH_GT200", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 #Returns tree records that are missing tree ID- if records exist, write to xlsx 
@@ -424,7 +433,7 @@ TreeDataMissingTagNumber <-TreeDataMissingTagNumber%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeDBH_cm, TreeHeight_m, Tree_Status, Crown_Health, TreeData_Notes)
 
 TestTreeNoTag<- if(nrow(TreeDataMissingTagNumber)>0) {
-  write.xlsx(TreeDataMissingTagNumber, file= "WBP_Validation.xlsx", sheetName = "TreeNoTag", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataMissingTagNumber, file= OutputFilename, sheetName = "TreeNoTag", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -434,7 +443,7 @@ TreeDataMissingHt <-TreeDataMissingHt%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeDBH_cm, TreeHeight_m, Tree_Status, Crown_Health, TreeData_Notes)
 
 TestTreeNoHt<- if(nrow(TreeDataMissingHt)>0) {
-  write.xlsx(TreeDataMissingHt, file= "WBP_Validation.xlsx", sheetName = "TreeNoHt", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataMissingHt, file= OutputFilename, sheetName = "TreeNoHt", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -444,7 +453,7 @@ TreeDataMissingDBH <-TreeDataMissingDBH%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeDBH_cm, TreeHeight_m, Tree_Status, Crown_Health, TreeData_Notes)
 
 TestTreeNoDBH<- if(nrow(TreeDataMissingDBH)>0) {
-  write.xlsx(TreeDataMissingDBH, file= "WBP_Validation.xlsx", sheetName = "TreeNoDBH", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataMissingDBH, file= OutputFilename, sheetName = "TreeNoDBH", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -454,7 +463,7 @@ TreeDataMissingSp <-TreeDataMissingSp%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeDBH_cm, TreeHeight_m, Tree_Status, Crown_Health, TreeData_Notes)
 
 TestTreeNoSp<- if(nrow(TreeDataMissingSp)>0) {
-  write.xlsx(TreeDataMissingSp, file= "WBP_Validation.xlsx", sheetName = "TreeNoSp", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataMissingSp, file= OutputFilename, sheetName = "TreeNoSp", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -464,7 +473,7 @@ TreeDataMissingSubplot <-TreeDataMissingSubplot%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, TreeData_SubPlot_StripID, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeDBH_cm, TreeHeight_m, Tree_Status, Crown_Health, TreeData_Notes)
 
 TestTreeNoSubplot<- if(nrow(TreeDataMissingSubplot)>0) {
-  write.xlsx(TreeDataMissingSubplot, file= "WBP_Validation.xlsx", sheetName = "TreeNoSubplot", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataMissingSubplot, file= OutputFilename, sheetName = "TreeNoSubplot", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -475,7 +484,7 @@ TreeDataMissingStatus <-TreeDataMissingStatus%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, TreeData_SubPlot_StripID, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeDBH_cm, TreeHeight_m, Tree_Status, Crown_Health, TreeData_Notes)
 
 TestTreeNoStatus<- if(nrow(TreeDataMissingStatus)>0) {
-  write.xlsx(TreeDataMissingStatus, file= "WBP_Validation.xlsx", sheetName = "TreeNoStatus", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataMissingStatus, file= OutputFilename, sheetName = "TreeNoStatus", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 #Returns live PIAL records where crown kill percent is missing from the upper section but not missing from mid or lower sections- if records exist, write to xlsx 
@@ -484,7 +493,7 @@ TreeDataMissingCrownKillUp <-TreeDataMissingCrownKillUp%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeHeight_m, Tree_Status, CrownKill_Lower_perc, CrownKill_Mid_perc, CrownKill_Upper_perc, Crown_Health, TreeData_Notes)
 
 TestPIALNoCrownKillUp<- if(nrow(TreeDataMissingCrownKillUp)>0) {
-  write.xlsx(TreeDataMissingCrownKillUp, file= "WBP_Validation.xlsx", sheetName = "TreePIALNoCrownKillUp", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataMissingCrownKillUp, file= OutputFilename, sheetName = "TreePIALNoCrownKillUp", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -494,7 +503,7 @@ TreeDataMissingCrownKillMid <-TreeDataMissingCrownKillMid%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeHeight_m, Tree_Status, CrownKill_Lower_perc, CrownKill_Mid_perc, CrownKill_Upper_perc, Crown_Health, TreeData_Notes)
 
 TestPIALNoCrownKillMid<- if(nrow(TreeDataMissingCrownKillMid)>0) {
-  write.xlsx(TreeDataMissingCrownKillMid, file= "WBP_Validation.xlsx", sheetName = "TreePIALNoCrownKillMid", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataMissingCrownKillMid, file= OutputFilename, sheetName = "TreePIALNoCrownKillMid", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -505,7 +514,7 @@ TreeDataMissingCrownKillLow <-TreeDataMissingCrownKillLow%>%
 
 
 TestPIALNoCrownKillLow<- if(nrow(TreeDataMissingCrownKillLow)>0) {
-  write.xlsx(TreeDataMissingCrownKillLow, file= "WBP_Validation.xlsx", sheetName = "TreePIALNoCrownKillLow", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataMissingCrownKillLow, file= OutputFilename, sheetName = "TreePIALNoCrownKillLow", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -515,7 +524,7 @@ TreeDataCrownHealthPIAL <-TreeDataCrownHealthPIAL%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeHeight_m, Tree_Status, Crown_Health, TreeData_Notes)
 
 TestPIALNoCrownHealth<- if(nrow(TreeDataCrownHealthPIAL)>0) {
-  write.xlsx(TreeDataCrownHealthPIAL, file= "WBP_Validation.xlsx", sheetName = "TreePIALNoCrownHealth", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataCrownHealthPIAL, file= OutputFilename, sheetName = "TreePIALNoCrownHealth", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -528,7 +537,7 @@ TreesNoSpJoin <-TreesNoSpJoin%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeHeight_m, Tree_Status, Crown_Health, TreeData_Notes)
 
 TestTreeSpNotInLU<- if(nrow(TreesNoSpJoin)>0) {
-  write.xlsx(TreesNoSpJoin, file= "WBP_Validation.xlsx", sheetName = "TreeSpNotInLU", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreesNoSpJoin, file= OutputFilename, sheetName = "TreeSpNotInLU", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -538,7 +547,7 @@ TreeDataStatus <-TreeDataStatus%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeHeight_m, Tree_Status, Crown_Health, TreeData_Notes)
 
 TestTreeStatusDomain<- if(nrow(TreeDataStatus)>0) {
-  write.xlsx(TreeDataStatus, file= "WBP_Validation.xlsx", sheetName = "TreeStatusNoDomain", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataStatus, file= OutputFilename, sheetName = "TreeStatusNoDomain", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -550,7 +559,7 @@ TreeDataSubplot <-TreeDataSubplot%>%
 
 
 TestTreeSubplot<- if(nrow(TreeDataSubplot)>0) {
-  write.xlsx(TreeDataSubplot, file= "WBP_Validation.xlsx", sheetName = "TreeSubplotNot1_5", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataSubplot, file= OutputFilename, sheetName = "TreeSubplotNot1_5", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -561,7 +570,7 @@ TreeDataStem2 <-TreeDataStem2%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, TreeData_SubPlot_StripID, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeHeight_m, Tree_Status, Crown_Health, TreeData_Notes)
 
 TestTreeStemLetter<- if(nrow(TreeDataStem2)>0) {
-  write.xlsx(TreeDataStem2, file= "WBP_Validation.xlsx", sheetName = "TreeStemLetterNotALetter", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataStem2, file= OutputFilename, sheetName = "TreeStemLetterNotALetter", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -571,7 +580,7 @@ TreeDataBoleCankLow1 <-TreeDataBoleCankLow1%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, TreeData_SubPlot_StripID, BoleCankers_I_Lower_YN, BoleCanks_ITypes_Lower, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeHeight_m, Tree_Status, Crown_Health, TreeData_Notes)
 
 TestTreeBoleCankLow1<- if(nrow(TreeDataBoleCankLow1)>0) {
-  write.xlsx(TreeDataBoleCankLow1, file= "WBP_Validation.xlsx", sheetName = "TreeBoleLowCankTrueNoInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataBoleCankLow1, file= OutputFilename, sheetName = "TreeBoleLowCankTrueNoInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -582,7 +591,7 @@ TreeDataBoleCankLow2 <-TreeDataBoleCankLow2%>%
 
 
 TestTreeBoleCankLow2<- if(nrow(TreeDataBoleCankLow2)>0) {
-  write.xlsx(TreeDataBoleCankLow2, file= "WBP_Validation.xlsx", sheetName = "TreeBoleLowCankFalseHasInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataBoleCankLow2, file= OutputFilename, sheetName = "TreeBoleLowCankFalseHasInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -592,7 +601,7 @@ TreeDataBoleCankMid1 <-TreeDataBoleCankMid1%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, TreeData_SubPlot_StripID, BoleCankers_I_Mid_YN, BoleCanks_ITypes_Mid, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeHeight_m, Tree_Status, Crown_Health, TreeData_Notes)
 
 TestTreeBoleCankMid1<- if(nrow(TreeDataBoleCankMid1)>0) {
-  write.xlsx(TreeDataBoleCankMid1, file= "WBP_Validation.xlsx", sheetName = "TreeBoleMidCankTrueNoInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataBoleCankMid1, file= OutputFilename, sheetName = "TreeBoleMidCankTrueNoInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -602,7 +611,7 @@ TreeDataBoleCankMid2 <-TreeDataBoleCankMid2%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, TreeData_SubPlot_StripID, BoleCankers_I_Mid_YN, BoleCanks_ITypes_Mid, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeHeight_m, Tree_Status, Crown_Health, TreeData_Notes)
 
 TestTreeBoleCankMid2<- if(nrow(TreeDataBoleCankMid2)>0) {
-  write.xlsx(TreeDataBoleCankMid2, file= "WBP_Validation.xlsx", sheetName = "TreeBoleMidCankFalseHasInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataBoleCankMid2, file= OutputFilename, sheetName = "TreeBoleMidCankFalseHasInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -613,7 +622,7 @@ TreeDataBoleCankUpp1 <-TreeDataBoleCankUpp1%>%
 
 
 TestTreeBoleCankUpp1<- if(nrow(TreeDataBoleCankUpp1)>0) {
-  write.xlsx(TreeDataBoleCankUpp1, file= "WBP_Validation.xlsx", sheetName = "TreeBoleUpCankTrueNoInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataBoleCankUpp1, file= OutputFilename, sheetName = "TreeBoleUpCankTrueNoInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 #Returns tree records where upper bole canks infestation checkbox = false but infestation type is populated- if records exist, write to xlsx 
@@ -622,7 +631,7 @@ TreeDataBoleCankUpp2 <-TreeDataBoleCankUpp2%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, TreeData_SubPlot_StripID, BoleCankers_I_Upper_YN, BoleCanks_ITypes_Upper, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeHeight_m, Tree_Status, Crown_Health, TreeData_Notes)
 
 TestTreeBoleCankUpp2<- if(nrow(TreeDataBoleCankUpp2)>0) {
-  write.xlsx(TreeDataBoleCankUpp2, file= "WBP_Validation.xlsx", sheetName = "TreeBoleUpCankFalseHasInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataBoleCankUpp2, file= OutputFilename, sheetName = "TreeBoleUpCankFalseHasInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
 } 
 
 
@@ -632,7 +641,7 @@ TreeDataBranchCankLow1 <-TreeDataBranchCankLow1%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, TreeData_SubPlot_StripID, BranchCanks_I_Lower_YN, BranchCanks_ITypes_Lower, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeHeight_m, Tree_Status, Crown_Health, TreeData_Notes)
 
 TestTreeBranchCankLow1<- if(nrow(TreeDataBranchCankLow1)>0) {
-  write.xlsx(TreeDataBranchCankLow1, file= "WBP_Validation.xlsx", sheetName = "TreeBranchLowCankTrueNoInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataBranchCankLow1, file= OutputFilename, sheetName = "TreeBranchLowCankTrueNoInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 
@@ -643,7 +652,7 @@ TreeDataBranchCankLow2 <-TreeDataBranchCankLow2%>%
 
 
 TestTreeBranchCankLow2<- if(nrow(TreeDataBranchCankLow2)>0) {
-  write.xlsx(TreeDataBranchCankLow2, file= "WBP_Validation.xlsx", sheetName = "TreeBranchLowCankFalseHasInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataBranchCankLow2, file= OutputFilename, sheetName = "TreeBranchLowCankFalseHasInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 
@@ -653,7 +662,7 @@ TreeDataBranchCankMid1 <-TreeDataBranchCankMid1%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, TreeData_SubPlot_StripID, BranchCanks_I_Mid_YN, BranchCanks_ITypes_Mid, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeHeight_m, Tree_Status, Crown_Health, TreeData_Notes)
 
 TestTreeBranchCankMid1<- if(nrow(TreeDataBranchCankMid1)>0) {
-  write.xlsx(TreeDataBranchCankMid1, file= "WBP_Validation.xlsx", sheetName = "TreeBranchMidCankTrueNoInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataBranchCankMid1, file= OutputFilename, sheetName = "TreeBranchMidCankTrueNoInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 
@@ -664,7 +673,7 @@ TreeDataBranchCankMid2 <-TreeDataBranchCankMid2%>%
   select(Unit_Code, PlotID_Number, TreeID_Number, TreeData_SubPlot_StripID, BranchCanks_I_Mid_YN, BranchCanks_ITypes_Mid, Start_Date, TreeData_ID, Clump_Number, Stem_Letter, Species_Code, TreeHeight_m, Tree_Status, Crown_Health, TreeData_Notes)
 
 TestTreeBranchCankMid2<- if(nrow(TreeDataBranchCankMid2)>0) {
-  write.xlsx(TreeDataBranchCankMid2, file= "WBP_Validation.xlsx", sheetName = "TreeBranchMidCankFalseHasInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataBranchCankMid2, file= OutputFilename, sheetName = "TreeBranchMidCankFalseHasInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 
@@ -676,7 +685,7 @@ TreeDataBranchUppCank1 <-TreeDataBranchUppCank1%>%
 
 
 TestTreeBranchUppCank1<- if(nrow(TreeDataBranchUppCank1)>0) {
-  write.xlsx(TreeDataBranchUppCank1, file= "WBP_Validation.xlsx", sheetName = "TreeBranchUpCankTrueNoInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataBranchUppCank1, file= OutputFilename, sheetName = "TreeBranchUpCankTrueNoInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 
@@ -687,7 +696,7 @@ TreeDataBranchCankUpp2 <-TreeDataBranchCankUpp2%>%
 
 
 TestTreeBranchCankUpp2 <- if(nrow(TreeDataBranchCankUpp2)>0) {
-  write.xlsx(TreeDataBranchCankUpp2, file= "WBP_Validation.xlsx", sheetName = "TreeBranchUpCankFalseHasInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(TreeDataBranchCankUpp2, file= OutputFilename, sheetName = "TreeBranchUpCankFalseHasInfestData", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 
@@ -700,7 +709,7 @@ InfestBranchCanksUp3 <- InfestBranchCanksUp2[grepl("B|D|E|G|H|I|J|K|L|M|N|P|Q|T|
 
 
 TestInfestBranchCanksUp <- if(nrow(InfestBranchCanksUp3)>0) {
-    write.xlsx(InfestBranchCanksUp3, file= "WBP_Validation.xlsx", sheetName = "TreeBranchUpCankInfestDomains", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(InfestBranchCanksUp3, file= OutputFilename, sheetName = "TreeBranchUpCankInfestDomains", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 #Returns tree records where Branch Canks middle field values don't match domain values
@@ -709,7 +718,7 @@ InfestBranchCanksMid1 <-DataTrees%>%
 InfestBranchCanksMid2 <- subset(InfestBranchCanksMid1, (!is.na(DataTrees$BranchCanks_ITypes_Mid)))
 InfestBranchCanksMid3 <- InfestBranchCanksMid2[grepl("B|D|E|G|H|I|J|K|L|M|N|P|Q|T|U|V|W|X|Y|Z", InfestBranchCanksMid2$BranchCanks_ITypes_Mid),]
 TestInfestBranchCanksMid <- if(nrow(InfestBranchCanksMid3)>0) {
-  write.xlsx(InfestBranchCanksMid3, file= "WBP_Validation.xlsx", sheetName = "TreeBranchMidCankInfestDomains", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(InfestBranchCanksMid3, file= OutputFilename, sheetName = "TreeBranchMidCankInfestDomains", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 #Returns tree records where Branch Canks lower field values don't match domain values
@@ -718,7 +727,7 @@ InfestBranchCanksLow1 <-DataTrees%>%
 InfestBranchCanksLow2 <- subset(InfestBranchCanksLow1, (!is.na(DataTrees$BranchCanks_ITypes_Lower)))
 InfestBranchCanksLow3 <- InfestBranchCanksLow2[grepl("B|D|E|G|H|I|J|K|L|M|N|P|Q|T|U|V|W|X|Y|Z", InfestBranchCanksLow2$BranchCanks_ITypes_Lower),]
 TestInfestBranchCanksLow <- if(nrow(InfestBranchCanksLow3)>0) {
-  write.xlsx(InfestBranchCanksLow3, file= "WBP_Validation.xlsx", sheetName = "TreeBranchLowCankInfestDomains", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(InfestBranchCanksLow3, file= OutputFilename, sheetName = "TreeBranchLowCankInfestDomains", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 
@@ -728,7 +737,7 @@ InfestBoleCanksUp1 <-DataTrees%>%
 InfestBoleCanksUp2 <- subset(InfestBoleCanksUp1, (!is.na(DataTrees$BoleCanks_ITypes_Upper)))
 InfestBoleCanksUp3 <- InfestBoleCanksUp2[grepl("B|D|E|G|H|I|J|K|L|M|N|P|Q|T|U|V|W|X|Y|Z", InfestBoleCanksUp2$BoleCanks_ITypes_Upper),]
 TestInfestBoleCanksUp <- if(nrow(InfestBoleCanksUp3)>0) {
-  write.xlsx(InfestBoleCanksUp3, file= "WBP_Validation.xlsx", sheetName = "TreeBoleUpCankInfestDomains", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(InfestBoleCanksUp3, file= OutputFilename, sheetName = "TreeBoleUpCankInfestDomains", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 #Returns tree records where Bole Canks middle field values don't match domain values
@@ -737,7 +746,7 @@ InfestBoleCanksMid1 <-DataTrees%>%
 InfestBoleCanksMid2 <- subset(InfestBoleCanksMid1, (!is.na(DataTrees$BoleCanks_ITypes_Mid)))
 InfestBoleCanksMid3 <- InfestBoleCanksMid2[grepl("B|D|E|G|H|I|J|K|L|M|N|P|Q|T|U|V|W|X|Y|Z", InfestBoleCanksMid2$BoleCanks_ITypes_Mid),]
 TestInfestBoleCanksMid <- if(nrow(InfestBoleCanksMid3)>0) {
-  write.xlsx(InfestBoleCanksMid3, file= "WBP_Validation.xlsx", sheetName = "TreeBoleMidCankInfestDomains", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(InfestBoleCanksMid3, file= OutputFilename, sheetName = "TreeBoleMidCankInfestDomains", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
 #Returns tree records where Bole Canks lower field values don't match domain values
@@ -746,9 +755,11 @@ InfestBoleCanksLow1 <-DataTrees%>%
 InfestBoleCanksLow2 <- subset(InfestBoleCanksLow1, (!is.na(DataTrees$BoleCanks_ITypes_Lower)))
 InfestBoleCanksLow3 <- InfestBoleCanksLow2[grepl("B|D|E|G|H|I|J|K|L|M|N|P|Q|T|U|V|W|X|Y|Z", InfestBoleCanksLow2$BoleCanks_ITypes_Lower),]
 TestInfestBoleCanksLow <- if(nrow(InfestBoleCanksLow3)>0) {
-  write.xlsx(InfestBoleCanksLow3, file= "WBP_Validation.xlsx", sheetName = "TreeBoleLowCankInfestDomains", append = TRUE, row.names = FALSE, showNA = FALSE)
+  write.xlsx(InfestBoleCanksLow3, file= OutputFilename, sheetName = "TreeBoleLowCankInfestDomains", append = TRUE, row.names = FALSE, showNA = FALSE)
 }
 
+
+write.xlsx(eventlog, file= OutputFilename, sheetName = "Log", append = TRUE, row.names = FALSE, showNA = FALSE)
 
 #############CLOSE THE CONNECTION TO THE DATABASE#####################################################################################
 odbcCloseAll()
